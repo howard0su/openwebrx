@@ -451,7 +451,7 @@ class WebRXHandler(BaseHTTPRequestHandler):
                         self.send_error(400, 'Bad request.') #client already started
                         return
                     rxws.send(self, "CLIENT DE SERVER openwebrx.py")
-                    client_ans=rxws.recv(self, True)
+                    client_ans=rxws.recv(self, True).decode()
                     if client_ans[:16]!="SERVER DE CLIENT":
                         rxws.send("ERR Bad answer.")
                         return
@@ -544,7 +544,8 @@ class WebRXHandler(BaseHTTPRequestHandler):
                             myclient.loopstat=51
                             #try:
                             if not rdata: break
-                            elif rdata[:3]=="SET":
+                            rdata = rdata.decode()
+                            if rdata[:3]=="SET":
                                 print("[openwebrx-httpd:ws,%d] command: %s"%(client_i,rdata))
                                 pairs=rdata[4:].split(" ")
                                 bpf_set=False

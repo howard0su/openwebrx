@@ -30,42 +30,38 @@ class WebSocketException(Exception):
 
 def handshake(myself):
     my_client_id=myself.path[4:]
-    my_headers=myself.headers.items()
-    my_header_keys=map(lambda x:x[0],my_headers)
-    h_key_exists=lambda x:my_header_keys.count(x)
-    h_value=lambda x:my_headers[my_header_keys.index(x)][1]
-    #print("The Lambdas(tm)")
-    #print h_key_exists("upgrade")
-    #print h_value("upgrade")
-    #print h_key_exists("sec-websocket-key")
-    if (not h_key_exists("upgrade")) or not (h_value("upgrade")=="websocket") or (not h_key_exists("sec-websocket-key")):
+    my_headers=dict([(k, v) for k,v in myself.headers.items()])
+
+    if (my_headers.get("Upgrade") is None) or (my_headers.get("Upgrade") != "websocket") or (my_headers.get("Sec-WebSocket-Key") is None):
         raise WebSocketException
-    ws_key=h_value("sec-websocket-key")
-    ws_key_toreturn=base64.b64encode(sha.new(ws_key+"258EAFA5-E914-47DA-95CA-C5AB0DC85B11").digest())
-    #A sample list of keys we get: [('origin', 'http://localhost:8073'), ('upgrade', 'websocket'), ('sec-websocket-extensions', 'x-webkit-deflate-frame'), ('sec-websocket-version', '13'), ('host', 'localhost:8073'), ('sec-websocket-key', 't9J1rgy4fc9fg2Hshhnkmg=='), ('connection', 'Upgrade'), ('pragma', 'no-cache'), ('cache-control', 'no-cache')]
-    myself.wfile.write("HTTP/1.1 101 Switching Protocols\r\nUpgrade: websocket\r\nConnection: Upgrade\r\nSec-WebSocket-Accept: "+ws_key_toreturn+"\r\nCQ-CQ-de: HA5KFU\r\n\r\n")
+    ws_key=(my_headers.get("Sec-WebSocket-Key") + "258EAFA5-E914-47DA-95CA-C5AB0DC85B11").encode(encoding='utf-8')
+    ws_key_toreturn=base64.b64encode(hashlib.sha1(ws_key).digest()).decode(encoding='utf-8')
+    #A sample list of keys we get: [('origin', 'http://localhost:8073'), ('upgrade', 'websocket'), ('sec-websocket-extensions', 'x-webkit-deflate-frame'), ('sec-websocket-version', '13'), ('host', 'localhost:8073'), ('Sec-WebSocket-Key', 't9J1rgy4fc9fg2Hshhnkmg=='), ('connection', 'Upgrade'), ('pragma', 'no-cache'), ('cache-control', 'no-cache')]
+    resp = "HTTP/1.1 101 Switching Protocols\r\nUpgrade: websocket\r\nConnection: Upgrade\r\nSec-WebSocket-Accept: "+ws_key_toreturn+"\r\nCQ-CQ-de: HA5KFU\r\n\r\n"
+    myself.wfile.write(resp.encode(encoding='utf-8'))
 
 def get_header(size):
+    result = bytearray()
     #this does something similar: https://github.com/lemmingzshadow/php-websocket/blob/master/server/lib/WebSocket/Connection.php
-    ws_first_byte=0b10000010 # FIN=1, OP=2
+    result.append(0b10000010) # FIN=1, OP=2
     if(size>125):
-        ws_second_byte=126 # The following two bytes will indicate frame size
-        extended_size=chr((size>>8)&0xff)+chr(size&0xff) #Okay, it uses reverse byte order (little-endian) compared to anything else sent on TCP
+        result.append(126) # The following two bytes will indicate frame size
+        #Okay, it uses reverse byte order (little-endian) compared to anything else sent on TCP
+        result.append((size>>8)&0xff)
+        result.append(size&0xff)
     else:
-        ws_second_byte=size
         #256 bytes binary message in a single unmasked frame | 0x82 0x7E 0x0100 [256 bytes of binary data]
-        extended_size=""
-    return chr(ws_first_byte)+chr(ws_second_byte)+extended_size
+        result.append(size)
+    return result
 
-def code_payload(data, masking_key=""):
+def code_payload(data, key=None):
     # both encode or decode
-    if masking_key=="":
+    if key is None:
         key = (61, 84, 35, 6)
-    else:
-        key = [ord(i) for i in masking_key]
-    encoded=""
+
+    encoded = bytearray()
     for i in range(0,len(data)):
-        encoded+=chr(ord(data[i])^key[i%4])
+        encoded.append(data[i] ^ key[i % 4])
     return encoded
 
 def xxdg(data):
@@ -81,7 +77,7 @@ def xxd(data):
     #diagnostic purposes only
     output=""
     for d in data:
-        output+=hex(ord(d))[2:].zfill(2)+" " 
+        output+=hex(d)[2:].zfill(2)+" " 
     return output
 
 #for R/W the WebSocket, use recv/send
@@ -100,7 +96,7 @@ def readsock(myself,size,blocking):
             f = fd[0]
             if f[1] > 0:
                 return myself.rfile.read(size)
-    return ""
+    return bytearray()
 
 
 def recv(myself, blocking=False, debug=False):
@@ -109,25 +105,29 @@ def recv(myself, blocking=False, debug=False):
     if debug: print("ws_recv begin")
     try:
         data=readsock(myself,6,blocking)
-        #print("rxws.recv bytes:",xxd(data) )
+        if debug:
+                print("rxws.recv bytes:",xxd(data) )
     except:
         if debug: print("ws_recv error" )
         return ""
     if debug: print("ws_recv recved")
-    if(len(data)==0): return ""
-    fin=ord(data[0])&128!=0
-    is_text_frame=ord(data[0])&15==1
-    length=ord(data[1])&0x7f
-    data+=readsock(myself,length,blocking)
-    #print("rxws.recv length is ",length," (multiple packets together?) len(data) =",len(data))
-    has_one_byte_length=length<125
-    masked=ord(data[1])&0x80!=0
-    #print("len=", length, len(data)-2)
-    #print("fin, is_text_frame, has_one_byte_length, masked = ", (fin, is_text_frame, has_one_byte_length, masked))
-    #print xxd(data)
+    if(len(data)==0):
+        return bytearray()
+    fin = (data[0] & 128) !=0
+    is_text_frame = (data[0] & 15) ==1
+    length = data[1] & 0x7f
+    payload = readsock(myself, length, True)
+    if debug:
+        print("rxws.recv length is ",length," (multiple packets together?) len(data) =",len(data) + len(payload))
+    has_one_byte_length = length < 125
+    masked = (data[1] & 0x80) !=0
+    if debug:
+        print("len=", length, len(data)-2)
+        print("fin, is_text_frame, has_one_byte_length, masked = ", (fin, is_text_frame, has_one_byte_length, masked))
+        print(xxd(data))
     if fin and is_text_frame and has_one_byte_length:
         if masked:
-            return code_payload(data[6:], data[2:6])
+            return code_payload(payload, data[2:6])
         else:
             return data[2:]
 
@@ -146,6 +146,10 @@ def flush(myself):
 def send(myself, data, begin_id="", debug=0):
     base_frame_size=35000 #could guess by MTU?
     debug=0
+    if type(begin_id) is str:
+        begin_id = begin_id.encode()
+    if type(data) is str:
+        data = data.encode()
     #try:
     while True:
         counter=0
