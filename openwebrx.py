@@ -26,22 +26,21 @@ import os
 import code
 import importlib
 import csdr
-import thread
 import time
 import datetime
 import subprocess
 import os
-from BaseHTTPServer import BaseHTTPRequestHandler, HTTPServer
-from SocketServer import ThreadingMixIn
+from http.server import BaseHTTPRequestHandler, HTTPServer
+from socketserver import ThreadingMixIn
 import fcntl
 import time
-import md5
+import hashlib
 import random
 import threading
 import sys
 import traceback
 from collections import namedtuple
-import Queue
+import queue
 import ctypes
 
 #import rtl_mus

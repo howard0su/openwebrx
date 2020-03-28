@@ -21,7 +21,7 @@ rxws: WebSocket methods implemented for OpenWebRX
 """
 
 import base64
-import sha
+import hashlib
 import select
 import code
 
