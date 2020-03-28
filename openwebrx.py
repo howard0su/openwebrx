@@ -43,6 +43,7 @@ import traceback
 from collections import namedtuple
 import queue
 import ctypes
+from functools import reduce
 
 #import rtl_mus
 import rxws
@@ -366,10 +367,10 @@ def generate_client_id(ip):
     #add a client
     global clients
     new_client=namedtuple("ClientStruct", "id gen_time ws_started sprectum_queue ip closed bcastmsg dsp loopstat")
-    new_client.id=md5.md5(str(random.random())).hexdigest()
+    new_client.id=hashlib.md5(os.urandom(32)).hexdigest()
     new_client.gen_time=time.time()
     new_client.ws_started=False # to check whether client has ever tried to open the websocket
-    new_client.spectrum_queue=Queue.Queue(1000)
+    new_client.spectrum_queue=queue.Queue(1000)
     new_client.ip=ip
     new_client.bcastmsg=""
     new_client.closed=[False] #byref, not exactly sure if required
@@ -648,8 +649,8 @@ class WebRXHandler(BaseHTTPRequestHandler):
                 if extension == "wrx" and (checkresult or receiver_failed):
                     self.send_302("inactive.html")
                     return
-                anyStringsPresentInUserAgent=lambda a: reduce(lambda x,y:x or y, map(lambda b:self.headers['user-agent'].count(b), a), False)
-                if extension == "wrx" and ( (not anyStringsPresentInUserAgent(("Chrome","Firefox","Googlebot","iPhone","iPad","iPod"))) if 'user-agent' in self.headers.keys() else True ) and (not request_param.count("unsupported")):
+                anyStringsPresentInUserAgent=lambda a: reduce(lambda x,y:x or y, map(lambda b:self.headers['User-Agent'].count(b), a), False)
+                if extension == "wrx" and ( (not anyStringsPresentInUserAgent(("Chrome","Firefox","Googlebot","iPhone","iPad","iPod"))) if 'User-Agent' in self.headers.keys() else True ) and (not request_param.count("unsupported")):
                     self.send_302("upgrade.html")
                     return
                 if extension == "wrx":
@@ -666,6 +667,7 @@ class WebRXHandler(BaseHTTPRequestHandler):
                     self.send_header('Content-type','text/css')
                 self.end_headers()
                 if extension == "wrx":
+                    data = data.decode("utf-8")
                     replace_dictionary=(
                         ("%[RX_PHOTO_DESC]",cfg.photo_desc),
                         ("%[CLIENT_ID]", generate_client_id(self.client_address[0])) if "%[CLIENT_ID]" in data else "",
@@ -694,6 +696,7 @@ class WebRXHandler(BaseHTTPRequestHandler):
                     for rule in replace_dictionary:
                         while data.find(rule[0])!=-1:
                             data=data.replace(rule[0],rule[1])
+                    data = data.encode(encoding="utf_8")
                 self.wfile.write(data)
                 f.close()
             return
