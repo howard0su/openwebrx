@@ -25,6 +25,7 @@ sw_version="v0.17"
 import os
 import code
 import importlib
+import io
 import csdr
 import time
 import datetime
@@ -639,7 +640,7 @@ class WebRXHandler(BaseHTTPRequestHandler):
                 self.wfile.write("status="+("inactive" if receiver_failed else "active")+"\nname="+cfg.receiver_name+"\nsdr_hw="+cfg.receiver_device+"\nop_email="+cfg.receiver_admin+"\nbands="+getbands()+"\nusers="+str(len(clients))+"\nusers_max="+str(cfg.max_clients)+"\navatar_ctime="+avatar_ctime+"\ngps="+str(cfg.receiver_gps)+"\nasl="+str(cfg.receiver_asl)+"\nloc="+cfg.receiver_location+"\nsw_version="+sw_version+"\nantenna="+cfg.receiver_ant+"\n")
                 print("[openwebrx-httpd] GET /status/ from",self.client_address[0])
             else:
-                f=open(rootdir+self.path)
+                f=io.open(rootdir+self.path, 'rb')
                 data=f.read()
                 extension=self.path[(len(self.path)-4):len(self.path)]
                 extension=extension[2:] if extension[1]=='.' else extension[1:]
