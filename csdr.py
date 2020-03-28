@@ -129,7 +129,7 @@ class dsp:
 
     def start_secondary_demodulator(self):
         if(not self.secondary_demodulator): return
-        print "[openwebrx] starting secondary demodulator from IF input sampled at %d"%self.if_samp_rate()
+        print("[openwebrx] starting secondary demodulator from IF input sampled at %d"%self.if_samp_rate())
         secondary_command_fft=self.secondary_chain("fft")
         secondary_command_demod=self.secondary_chain(self.secondary_demodulator)
         self.try_create_pipes(self.secondary_pipe_names, secondary_command_demod + secondary_command_fft)
@@ -150,26 +150,26 @@ class dsp:
             if_samp_rate=self.if_samp_rate()
             )
 
-        print "[openwebrx-dsp-plugin:csdr] secondary command (fft) =", secondary_command_fft
-        print "[openwebrx-dsp-plugin:csdr] secondary command (demod) =", secondary_command_demod
+        print("[openwebrx-dsp-plugin:csdr] secondary command (fft) =", secondary_command_fft)
+        print("[openwebrx-dsp-plugin:csdr] secondary command (demod) =", secondary_command_demod)
         #code.interact(local=locals())
         my_env=os.environ.copy()
         #if self.csdr_dynamic_bufsize: my_env["CSDR_DYNAMIC_BUFSIZE_ON"]="1";
         if self.csdr_print_bufsizes: my_env["CSDR_PRINT_BUFSIZES"]="1";
         self.secondary_process_fft = subprocess.Popen(secondary_command_fft, stdout=subprocess.PIPE, shell=True, preexec_fn=os.setpgrp, env=my_env)
-        print "[openwebrx-dsp-plugin:csdr] Popen on secondary command (fft)"
+        print("[openwebrx-dsp-plugin:csdr] Popen on secondary command (fft)")
         self.secondary_process_demod = subprocess.Popen(secondary_command_demod, stdout=subprocess.PIPE, shell=True, preexec_fn=os.setpgrp, env=my_env) #TODO digimodes
-        print "[openwebrx-dsp-plugin:csdr] Popen on secondary command (demod)" #TODO digimodes
+        print("[openwebrx-dsp-plugin:csdr] Popen on secondary command (demod)") #TODO digimodes
         self.secondary_processes_running = True
 
         #open control pipes for csdr and send initialization data
-        # print "==========> 1"
+        # print("==========> 1")
         if self.secondary_shift_pipe != None: #TODO digimodes
-            # print "==========> 2", self.secondary_shift_pipe
+            # print("==========> 2", self.secondary_shift_pipe)
             self.secondary_shift_pipe_file=open(self.secondary_shift_pipe,"w") #TODO digimodes
-            # print "==========> 3"
+            # print("==========> 3")
             self.set_secondary_offset_freq(self.secondary_offset_freq) #TODO digimodes
-            # print "==========> 4"
+            # print("==========> 4")
 
         self.set_pipe_nonblocking(self.secondary_process_demod.stdout)
         self.set_pipe_nonblocking(self.secondary_process_fft.stdout)
@@ -299,9 +299,9 @@ class dsp:
         return self.ddc_transition_bw_rate*(self.if_samp_rate()/float(self.samp_rate))
 
     def try_create_pipes(self, pipe_names, command_base):
-        # print "try_create_pipes"
+        # print("try_create_pipes")
         for pipe_name in pipe_names:
-            # print "\t"+pipe_name
+            # print("\t"+pipe_name)
             if "{"+pipe_name+"}" in command_base:
                 setattr(self, pipe_name, self.pipe_base_path+pipe_name)
                 self.mkfifo(getattr(self, pipe_name))
@@ -313,7 +313,7 @@ class dsp:
             pipe_path = getattr(self,pipe_name,None)
             if pipe_path:
                 try: os.unlink(pipe_path)
-                except Exception as e: print "[openwebrx-dsp-plugin:csdr] try_delete_pipes() ::", e
+                except Exception as e: print("[openwebrx-dsp-plugin:csdr] try_delete_pipes() ::", e)
 
     def set_pipe_nonblocking(self, pipe):
         flags = fcntl.fcntl(pipe, fcntl.F_GETFL)
@@ -354,7 +354,7 @@ class dsp:
             flowcontrol=int(self.samp_rate*2), start_bufsize=self.base_bufsize*self.decimation, nc_port=self.nc_port, \
             squelch_pipe=self.squelch_pipe, smeter_pipe=self.smeter_pipe, iqtee_pipe=self.iqtee_pipe, iqtee2_pipe=self.iqtee2_pipe )
 
-        print "[openwebrx-dsp-plugin:csdr] Command =",command
+        print("[openwebrx-dsp-plugin:csdr] Command =",command)
         #code.interact(local=locals())
         my_env=os.environ.copy()
         if self.csdr_dynamic_bufsize: my_env["CSDR_DYNAMIC_BUFSIZE_ON"]="1";
@@ -387,7 +387,7 @@ class dsp:
         #if(self.process.poll()!=None):return # returns None while subprocess is running
         #while(self.process.poll()==None):
         #   #self.process.kill()
-        #   print "killproc",os.getpgid(self.process.pid),self.process.pid
+        #   print("killproc",os.getpgid(self.process.pid),self.process.pid)
         #   os.killpg(self.process.pid, signal.SIGTERM)
         #
         #   time.sleep(0.1)
@@ -396,22 +396,22 @@ class dsp:
 
         # if self.bpf_pipe:
             # try: os.unlink(self.bpf_pipe)
-            # except: print "[openwebrx-dsp-plugin:csdr] stop() :: unlink failed: " + self.bpf_pipe
+            # except: print("[openwebrx-dsp-plugin:csdr] stop() :: unlink failed: " + self.bpf_pipe)
         # if self.shift_pipe:
             # try: os.unlink(self.shift_pipe)
-            # except: print "[openwebrx-dsp-plugin:csdr] stop() :: unlink failed: " + self.shift_pipe
+            # except: print("[openwebrx-dsp-plugin:csdr] stop() :: unlink failed: " + self.shift_pipe)
         # if self.squelch_pipe:
             # try: os.unlink(self.squelch_pipe)
-            # except: print "[openwebrx-dsp-plugin:csdr] stop() :: unlink failed: " + self.squelch_pipe
+            # except: print("[openwebrx-dsp-plugin:csdr] stop() :: unlink failed: " + self.squelch_pipe)
         # if self.smeter_pipe:
             # try: os.unlink(self.smeter_pipe)
-            # except: print "[openwebrx-dsp-plugin:csdr] stop() :: unlink failed: " + self.smeter_pipe
+            # except: print("[openwebrx-dsp-plugin:csdr] stop() :: unlink failed: " + self.smeter_pipe)
         # if self.iqtee_pipe:
             # try: os.unlink(self.iqtee_pipe)
-            # except: print "[openwebrx-dsp-plugin:csdr] stop() :: unlink failed: " + self.iqtee_pipe
+            # except: print("[openwebrx-dsp-plugin:csdr] stop() :: unlink failed: " + self.iqtee_pipe)
         # if self.iqtee2_pipe:
             # try: os.unlink(self.iqtee2_pipe)
-            # except: print "[openwebrx-dsp-plugin:csdr] stop() :: unlink failed: " + self.iqtee2_pipe
+            # except: print("[openwebrx-dsp-plugin:csdr] stop() :: unlink failed: " + self.iqtee2_pipe)
 
         self.running = False
 
